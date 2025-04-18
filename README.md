@@ -7,7 +7,7 @@
 
 A real-time win probability predictor for IPL matches powered by machine learning.
 
-![Application Screenshot](./screenshot-2025-04-18-175652.png)
+![Application Screenshot](./Screenshot%202025-04-18%20175652.png)
 
 ## ✨ Features
 
