@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏏 IPL Win Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .result-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .win-prob {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        .loss-prob {
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-bottom: 15px;
+        }
+        .debug-info {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 20px;
+            border-top: 1px solid #dee2e6;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- DEBUG: Test if template variables are working -->
+        {% if not teams %}
+        <div class="alert alert-warning">WARNING: Teams data not loaded</div>
+        {% endif %}
+        
+        {% if not cities %}
+        <div class="alert alert-warning">WARNING: Cities data not loaded</div>
+        {% endif %}
+
+        <div class="header">
+            <h1>🏏 IPL Win Predictor</h1>
+            <p class="text-muted">Server Time: {{ now }}</p>
+        </div>
+        
+        <div class="form-container">
+            {% if errors %}
+                {% for error in errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+            
+            <form method="POST" action="/predict">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="batting_team" class="form-label">Batting Team</label>
+                        <select class="form-select" id="batting_team" name="batting_team" required>
+                            <option value="">Select Batting Team</option>
+                            {% if teams %}
+                                {% for team in teams %}
+                                    <option value="{{ team }}" 
+                                        {% if form_data.batting_team == team or batting_team == team %}selected{% endif %}>
+                                        {{ team }}
+                                    </option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="" disabled>No teams loaded</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="bowling_team" class="form-label">Bowling Team</label>
+                        <select class="form-select" id="bowling_team" name="bowling_team" required>
+                            <option value="">Select Bowling Team</option>
+                            {% if teams %}
+                                {% for team in teams %}
+                                    <option value="{{ team }}" 
+                                        {% if form_data.bowling_team == team or bowling_team == team %}selected{% endif %}>
+                                        {{ team }}
+                                    </option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="" disabled>No teams loaded</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="city" class="form-label">Host City</label>
+                    <select class="form-select" id="city" name="city" required>
+                        <option value="">Select Host City</option>
+                        {% if cities %}
+                            {% for city in cities %}
+                                <option value="{{ city }}" 
+                                    {% if form_data.city == city or selected_city == city %}selected{% endif %}>
+                                    {{ city }}
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="" disabled>No cities loaded</option>
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="target" class="form-label">Target Score</label>
+                    <input type="number" class="form-control" id="target" name="target" min="1" 
+                           value="{{ form_data.target if form_data.target else '' }}" required>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="score" class="form-label">Current Score</label>
+                        <input type="number" class="form-control" id="score" name="score" min="0" 
+                               value="{{ form_data.score if form_data.score else '' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="overs" class="form-label">Overs Completed</label>
+                        <input type="number" class="form-control" id="overs" name="overs" min="0.1" max="20.0" step="0.1" 
+                               value="{{ form_data.overs if form_data.overs else '' }}" required>
+                        <small class="text-muted">Must be in increments of 0.5 (e.g., 10.0 or 10.5)</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="wickets_lost" class="form-label">Wickets Lost</label>
+                        <input type="number" class="form-control" id="wickets_lost" name="wickets_lost" min="0" max="9" 
+                               value="{{ form_data.wickets_lost if form_data.wickets_lost else '' }}" required>
+                    </div>
+                </div>
+                
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Predict Probability</button>
+                </div>
+            </form>
+            
+            {% if prediction %}
+            <div class="result-container">
+                <h3>🏆 Win Probability</h3>
+                <div class="win-prob">{{ batting_team }}: {{ win_probability }}%</div>
+                <div class="loss-prob">{{ bowling_team }}: {{ loss_probability }}%</div>
+            </div>
+            {% endif %}
+            
+            <!-- Debug information -->
+            <div class="debug-info">
+                <p>Template rendered at: {{ now }}</p>
+                {% if prediction %}
+                <p>Prediction mode: True</p>
+                {% else %}
+                <p>Prediction mode: False</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Simple JavaScript to validate overs input -->
+    <script>
+        document.getElementById('overs').addEventListener('change', function() {
+            const value = parseFloat(this.value);
+            const decimal = value - Math.floor(value);
+            
+            if (decimal !== 0 && decimal !== 0.5) {
+                alert('Overs must be in increments of 0.5 (e.g., 10.0 or 10.5)');
+                this.value = Math.floor(value) + (decimal > 0.5 ? 0.5 : 0.0);
+            }
+        });
+    </script>
+</body>
+</html>
